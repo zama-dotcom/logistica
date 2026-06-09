@@ -1,46 +1,47 @@
 /* Minimalist Stylesheet */
 
-/* Light Gray Background for windows and main areas */
+/* Dark Gray Background for windows and main areas */
 QMainWindow, QWidget, QMdiArea, QDialog {
-    background-color: #E5E5E5;
+    background-color: #2C3E50;
     font-family: Arial, sans-serif;
+    color: #ECF0F1;
 }
 
-/* Concrete Gray Details for general text */
+/* Specific text elements */
 QLabel, QCheckBox, QRadioButton, QGroupBox {
-    color: #7F8C8D;
+    color: #ECF0F1;
 }
 
 /* Red Headers */
 QLabel#headerTitle {
-    color: #D32F2F;
+    color: #E74C3C;
     font-size: 20px;
     font-weight: bold;
 }
 QHeaderView::section {
-    background-color: #D32F2F;
-    color: white;
+    background-color: #E74C3C;
+    color: #000000;
     font-weight: bold;
     padding: 4px;
-    border: 1px solid #B71C1C;
+    border: 1px solid #C0392B;
 }
 
-/* Blue Tables and Charts (buttons or specific areas if requested) */
+/* Tables and Charts */
 QTableWidget, QTableView {
-    background-color: white;
-    color: #1976D2;
-    gridline-color: #1976D2;
-    selection-background-color: #1976D2;
-    selection-color: white;
+    background-color: #34495E;
+    color: #ECF0F1;
+    gridline-color: #7F8C8D;
+    selection-background-color: #ADD8E6;
+    selection-color: #000000;
 }
 
 QTableWidget::item {
-    border-bottom: 1px solid #BBDEFB;
+    border-bottom: 1px solid #7F8C8D;
 }
 
-/* Buttons in Blue for main actions */
+/* Buttons in main actions */
 QPushButton {
-    background-color: #1976D2;
+    background-color: #2980B9;
     color: white;
     border: none;
     border-radius: 4px;
@@ -49,49 +50,49 @@ QPushButton {
 }
 
 QPushButton:hover {
-    background-color: #1565C0;
+    background-color: #3498DB;
 }
 
 QPushButton:pressed {
-    background-color: #0D47A1;
+    background-color: #1F618D;
 }
 
 /* Buttons in Red for dangerous/cancel actions */
 QPushButton#redButton {
-    background-color: #D32F2F;
+    background-color: #E74C3C;
 }
 
 QPushButton#redButton:hover {
-    background-color: #C62828;
+    background-color: #C0392B;
 }
 
-/* Inputs / Details in Concrete Gray */
+/* Inputs / Details */
 QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit {
-    background-color: white;
-    color: #7F8C8D;
+    background-color: #ECF0F1;
+    color: #2C3E50;
     border: 1px solid #95A5A6;
     border-radius: 4px;
     padding: 4px;
 }
 
 QLineEdit:focus, QComboBox:focus, QSpinBox:focus {
-    border: 2px solid #1976D2;
+    border: 2px solid #E74C3C;
 }
 
-/* Concrete Gray for Menus */
+/* Menus */
 QMenuBar {
-    background-color: #E5E5E5;
-    color: #7F8C8D;
+    background-color: #34495E;
+    color: #ECF0F1;
 }
 QMenuBar::item:selected {
-    background-color: #BDC3C7;
-    color: #2C3E50;
+    background-color: #2C3E50;
+    color: #E74C3C;
 }
 QMenu {
-    background-color: #E5E5E5;
-    color: #7F8C8D;
+    background-color: #34495E;
+    color: #ECF0F1;
 }
 QMenu::item:selected {
-    background-color: #1976D2;
+    background-color: #2980B9;
     color: white;
 }

@@ -35,7 +35,7 @@ from controllers.logistics_engine import (
 from models.client_model import Client
 from models.employee_model import Employee
 from models.order_model import Order
-from models.truck_model import Truck
+from models.truck_model import Truck, TruckCapacity
 
 
 class DispatchView(QWidget):
@@ -49,9 +49,10 @@ class DispatchView(QWidget):
     4. Route report dashboard
     """
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, user_role: str = None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("dispatchView")
+        self.user_role = user_role
 
         # Controller
         self._controller = DeliveryController()
@@ -59,13 +60,14 @@ class DispatchView(QWidget):
         # State
         self._selected_orders: list[Order] = []
         self._optimized_route: list[Client] = []
-        self._selected_truck: Optional[Truck] = None
+        self._selected_truck: Optional[Truck] = Truck(id=99, plate_number="Asignación Automática", capacity=TruckCapacity.SMALL, brand="Variado", model_year=2024)
         self._selected_driver: Optional[Employee] = None
         self._selected_helper: Optional[Employee] = None
 
         self._setup_ui()
-        self._connect_signals()
-        self._populate_combos()
+        if self.user_role != "JEFE":
+            self._connect_signals()
+            self._populate_combos()
 
     # ──────────────────────────────────────────────────────────────
     #  UI Setup
@@ -98,10 +100,11 @@ class DispatchView(QWidget):
         self._tab_widget = QTabWidget()
         main_layout.addWidget(self._tab_widget, 1)
 
-        # Tab 1: Dispatch Operations
-        operations_tab = QWidget()
-        self._tab_widget.addTab(operations_tab, "🚚 Despacho y Carga")
-        self._setup_operations_tab(operations_tab)
+        # Tab 1: Dispatch Operations (Only if not JEFE)
+        if self.user_role != "JEFE":
+            operations_tab = QWidget()
+            self._tab_widget.addTab(operations_tab, "🚚 Despacho y Carga")
+            self._setup_operations_tab(operations_tab)
 
         # Tab 2: Route Reports
         reports_tab = QWidget()
@@ -114,33 +117,35 @@ class DispatchView(QWidget):
         layout.setContentsMargins(8, 12, 8, 8)
         layout.setSpacing(12)
 
-        # Top section: Group creation + Capacity
-        top_splitter = QSplitter(Qt.Orientation.Horizontal)
-        layout.addWidget(top_splitter)
-
-        # Left: Group creation form
-        group_panel = self._create_group_panel()
-        top_splitter.addWidget(group_panel)
-
-        # Right: Capacity visualization
+        # Header: Capacity visualization (small)
         capacity_panel = self._create_capacity_panel()
-        top_splitter.addWidget(capacity_panel)
+        capacity_panel.setMaximumHeight(150)
+        layout.addWidget(capacity_panel)
 
-        top_splitter.setSizes([450, 350])
+        # Splitter for Main content
+        main_splitter = QSplitter(Qt.Orientation.Horizontal)
+        layout.addWidget(main_splitter, 1)
 
-        # Bottom section: Route table + Available clients
-        bottom_splitter = QSplitter(Qt.Orientation.Horizontal)
-        layout.addWidget(bottom_splitter, 1)
-
-        # Left: Optimized route table
-        route_panel = self._create_route_panel()
-        bottom_splitter.addWidget(route_panel)
-
-        # Right: Available clients list
+        # Left: Available clients list (large)
         clients_panel = self._create_available_clients_panel()
-        bottom_splitter.addWidget(clients_panel)
+        main_splitter.addWidget(clients_panel)
 
-        bottom_splitter.setSizes([600, 300])
+        # Right Container
+        right_container = QWidget()
+        right_layout = QVBoxLayout(right_container)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(12)
+
+        # Right Top: Optimized route table
+        route_panel = self._create_route_panel()
+        right_layout.addWidget(route_panel, 1)
+
+        # Right Bottom: Group creation form
+        group_panel = self._create_group_panel()
+        right_layout.addWidget(group_panel)
+
+        main_splitter.addWidget(right_container)
+        main_splitter.setSizes([500, 400])
 
     def _create_group_panel(self) -> QGroupBox:
         """Create the delivery group assignment form."""
@@ -165,15 +170,6 @@ class DispatchView(QWidget):
         self._helper_combo = QComboBox()
         self._helper_combo.setPlaceholderText("Seleccione un ayudante...")
         layout.addWidget(self._helper_combo)
-
-        # Truck selection
-        truck_label = QLabel("Camión:")
-        truck_label.setObjectName("subtitleLabel")
-        layout.addWidget(truck_label)
-
-        self._truck_combo = QComboBox()
-        self._truck_combo.setPlaceholderText("Seleccione un camión...")
-        layout.addWidget(self._truck_combo)
 
         # Action buttons row
         buttons_layout = QHBoxLayout()
@@ -402,16 +398,6 @@ class DispatchView(QWidget):
                 userData=helper,
             )
 
-        # Trucks
-        self._truck_combo.clear()
-        trucks = self._controller.get_trucks(available_only=True)
-        for truck in trucks:
-            self._truck_combo.addItem(
-                f"{truck.plate_number} — {truck.capacity_label} "
-                f"({truck.brand} {truck.model_year})",
-                userData=truck,
-            )
-
         # Populate available clients list
         self._refresh_available_clients()
 
@@ -540,55 +526,40 @@ class DispatchView(QWidget):
         self._available_clients_list.currentItemChanged.connect(
             self._on_available_client_changed
         )
-        self._truck_combo.currentIndexChanged.connect(
-            self._on_truck_changed
-        )
 
     # ──────────────────────────────────────────────────────────────
     #  Event Handlers
     # ──────────────────────────────────────────────────────────────
 
-    def _on_truck_changed(self, index: int) -> None:
-        """Handle truck selection change."""
-        if index >= 0:
-            self._selected_truck = self._truck_combo.currentData()
-            self._update_capacity_display()
-
     def _on_create_group(self) -> None:
         """Handle 'Create Group' button click."""
         driver_idx = self._driver_combo.currentIndex()
         helper_idx = self._helper_combo.currentIndex()
-        truck_idx = self._truck_combo.currentIndex()
 
-        if driver_idx < 0 or helper_idx < 0 or truck_idx < 0:
+        if driver_idx < 0 or helper_idx < 0:
             QMessageBox.warning(
                 self,
                 "Campos Incompletos",
-                "Debe seleccionar un conductor, un ayudante y un camión "
+                "Debe seleccionar un conductor y un ayudante "
                 "para crear el grupo de entrega.",
             )
             return
 
         self._selected_driver = self._driver_combo.currentData()
         self._selected_helper = self._helper_combo.currentData()
-        self._selected_truck = self._truck_combo.currentData()
 
         if self._selected_driver is None or self._selected_helper is None:
-            return
-        if self._selected_truck is None:
             return
 
         # Update UI state
         self._group_status_label.setText(
             f"✓ Grupo: {self._selected_driver.full_name} + "
-            f"{self._selected_helper.full_name} → "
-            f"{self._selected_truck.plate_number}"
+            f"{self._selected_helper.full_name}"
         )
         self._btn_smart_load.setEnabled(True)
         self._btn_create_group.setEnabled(False)
         self._driver_combo.setEnabled(False)
         self._helper_combo.setEnabled(False)
-        self._truck_combo.setEnabled(False)
 
         self._update_capacity_display()
 
@@ -597,9 +568,7 @@ class DispatchView(QWidget):
             "Grupo Creado",
             f"Grupo de entrega creado exitosamente.\n\n"
             f"Conductor: {self._selected_driver.full_name}\n"
-            f"Ayudante: {self._selected_helper.full_name}\n"
-            f"Camión: {self._selected_truck.plate_number} "
-            f"({self._selected_truck.capacity} bolsas)\n\n"
+            f"Ayudante: {self._selected_helper.full_name}\n\n"
             f"Ahora puede ejecutar la Carga Inteligente.",
         )
 
@@ -701,7 +670,6 @@ class DispatchView(QWidget):
             f"¿Está seguro de despachar este grupo?\n\n"
             f"Conductor: {self._selected_driver.full_name}\n"
             f"Ayudante: {self._selected_helper.full_name}\n"
-            f"Camión: {self._selected_truck.plate_number}\n"
             f"Pedidos: {len(self._selected_orders)}\n"
             f"Paradas: {len(self._optimized_route)}",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
@@ -843,13 +811,12 @@ class DispatchView(QWidget):
         """Reset the entire dispatch form to initial state."""
         self._selected_orders = []
         self._optimized_route = []
-        self._selected_truck = None
+        self._selected_truck = Truck(id=99, plate_number="Asignación Automática", capacity=TruckCapacity.SMALL, brand="Variado", model_year=2024)
         self._selected_driver = None
         self._selected_helper = None
 
         self._driver_combo.setEnabled(True)
         self._helper_combo.setEnabled(True)
-        self._truck_combo.setEnabled(True)
         self._btn_create_group.setEnabled(True)
         self._btn_smart_load.setEnabled(False)
         self._btn_optimize_route.setEnabled(False)

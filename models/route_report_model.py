@@ -51,6 +51,7 @@ class RouteReport:
     """
     id: Optional[int] = field(default=None)
     delivery_group_id: int = field(default=0)
+    promoter_name: str = field(default="")
     client_id: int = field(default=0)
     client_name: str = field(default="")
     bags_delivered: int = field(default=0)

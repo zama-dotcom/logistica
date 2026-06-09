@@ -90,9 +90,40 @@ class DeliveryController:
             ]
         return list(self._route_reports)
 
+    def get_realized_orders_info(self) -> list[dict]:
+        realized = []
+        group_driver_map = {}
+        for group in self._delivery_groups:
+            driver_name = "Desconocido"
+            for d in self._drivers:
+                if d.id == group.driver_id:
+                    driver_name = d.full_name
+                    break
+            group_driver_map[group.id] = driver_name
+
+        for report in self._route_reports:
+            driver_name = group_driver_map.get(report.delivery_group_id, "Desconocido")
+            realized.append({
+                "client_name": report.client_name,
+                "bags_delivered": report.bags_delivered,
+                "payment_collected": report.payment_collected,
+                "group_id": report.delivery_group_id,
+                "driver_name": driver_name,
+                "delivery_timestamp": report.delivery_timestamp
+            })
+        return realized
+
 
     #  Mutations
     
+
+    def add_client(self, client: Client) -> bool:
+        if client.id is None or client.id == 0:
+            client.id = max((c.id for c in self._clients if c.id is not None), default=0) + 1
+        elif any(c.id == client.id for c in self._clients):
+            return False
+        self._clients.append(client)
+        return True
 
     def add_delivery_group(self, group: DeliveryGroup) -> DeliveryGroup:
         
@@ -130,6 +161,28 @@ class DeliveryController:
                 report.liquidation_status = status
                 return True
         return False
+
+    def save_approved_liquidations(self) -> int:
+        """
+        Saves all approved liquidations to the database (simulated)
+        and removes them from the pending list.
+        Returns the number of liquidations saved.
+        """
+        approved_reports = [
+            r for r in self._route_reports
+            if r.liquidation_status == LiquidationStatus.APPROVED
+        ]
+        
+        # Simulate saving to client's folder / database
+        count = len(approved_reports)
+        
+        # Remove from active list
+        self._route_reports = [
+            r for r in self._route_reports
+            if r.liquidation_status != LiquidationStatus.APPROVED
+        ]
+        
+        return count
 
     def get_financial_summary(self) -> dict[str, float]:
         
@@ -200,7 +253,7 @@ class DeliveryController:
                      phone="5550-2003"),
         ]
 
-    """def _load_clients(self) -> None:
+    def _load_clients(self) -> None:
         self._clients = [
             Client(id=1, business_name="Ferretería El Maestro",
                    contact_name="Ana Morales", phone="2200-1001",
@@ -298,13 +351,12 @@ class DeliveryController:
                     unit_price=round(random.uniform(45.0, 85.0), 2),
                     created_at=datetime.now() - timedelta(hours=random.randint(1, 48)),
                 )
-            )"""
+            )
 
     def _load_sample_reports(self) -> None:
         """Load sample route reports for the boss dashboard."""
         payment_methods = [
             PaymentMethod.CASH, PaymentMethod.TRANSFER,
-            PaymentMethod.CHECK, PaymentMethod.CREDIT,
         ]
         liquidation_statuses = [
             LiquidationStatus.PENDING, LiquidationStatus.APPROVED,
@@ -313,6 +365,7 @@ class DeliveryController:
         ]
 
         self._route_reports = []
+        promoters = ["Juan Pérez", "Ana García", "Carlos López", "María Gómez"]
         for i in range(1, 16):
             client_idx = (i - 1) % len(self._clients)
             client = self._clients[client_idx]
@@ -320,6 +373,7 @@ class DeliveryController:
                 RouteReport(
                     id=i,
                     delivery_group_id=(i - 1) // 5 + 1,
+                    promoter_name=promoters[i % len(promoters)],
                     client_id=client.id if client.id else i,
                     client_name=client.business_name,
                     bags_delivered=random.randint(20, 150),
@@ -329,14 +383,14 @@ class DeliveryController:
                         random.uniform(2000.0, 15000.0), 2
                     ),
                     payment_method=random.choice(payment_methods),
-                    liquidation_status=liquidation_statuses[
-                        i % len(liquidation_statuses)
-                    ],
+                    liquidation_status=LiquidationStatus.PENDING,
                     notes="",
                     delivery_timestamp=datetime.now() - timedelta(
                         hours=random.randint(1, 72)
                     ),
-                    created_at=datetime.now(),
+                    created_at=datetime.now() - timedelta(
+                        hours=random.randint(73, 96)
+                    ),
                 )
             )
         self._next_report_id = 16

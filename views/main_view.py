@@ -22,6 +22,8 @@ from PySide6.QtWidgets import (
 from views.ui_dispatch import DispatchView
 from views.ui_boss import BossView
 from views.user_management_view import UserManagementView
+from views.ui_orders import OrdersView
+from views.ui_clients import ClientsView
 
 class MainWindow(QMainWindow):
     """Main MDI window with menu-driven navigation."""
@@ -37,6 +39,8 @@ class MainWindow(QMainWindow):
         self._dispatch_window: Optional[QMdiSubWindow] = None
         self._boss_window: Optional[QMdiSubWindow] = None
         self._user_management_window: Optional[QMdiSubWindow] = None
+        self._orders_window: Optional[QMdiSubWindow] = None
+        self._clients_window: Optional[QMdiSubWindow] = None
 
         # MDI Area as central widget
         self._mdi_area = QMdiArea()
@@ -77,14 +81,10 @@ class MainWindow(QMainWindow):
             orders_menu = menubar.addMenu("Pedidos")
 
             manage_orders_action = orders_menu.addAction("Gestionar Pedidos")
-            manage_orders_action.triggered.connect(
-                lambda: self._show_info("Gestionar Pedidos")
-            )
+            manage_orders_action.triggered.connect(self._open_orders_window)
 
             manage_clients_action = orders_menu.addAction("Gestionar Clientes")
-            manage_clients_action.triggered.connect(
-                lambda: self._show_info("Gestionar Clientes")
-            )
+            manage_clients_action.triggered.connect(self._open_clients_window)
 
         # Logística accesible para JEFE y DESPACHO
         if self.user_role in ("JEFE", "DESPACHO"):
@@ -94,24 +94,21 @@ class MainWindow(QMainWindow):
             dispatch_action = logistics_menu.addAction("Despacho")
             dispatch_action.triggered.connect(self._open_dispatch_window)
 
-            if self.user_role == "JEFE":
-                boss_action = logistics_menu.addAction("Panel del Jefe")
-                boss_action.triggered.connect(self._open_boss_window)
-
             # ── Menu: Dashboard ──
             dashboard_menu = menubar.addMenu("Dashboard")
             dashboard_action = dashboard_menu.addAction("Panel General")
-            dashboard_action.triggered.connect(
-                lambda: self._show_info("Panel General")
-            )
+            if self.user_role == "JEFE":
+                dashboard_action.triggered.connect(self._open_boss_window)
+            else:
+                dashboard_action.triggered.connect(
+                    lambda: self._show_info("Panel General")
+                )
 
         # PROMOTOR solo ve Pedidos
         if self.user_role == "PROMOTOR":
             orders_menu = menubar.addMenu("Pedidos")
             manage_orders_action = orders_menu.addAction("Ver Pedidos")
-            manage_orders_action.triggered.connect(
-                lambda: self._show_info("Ver Pedidos")
-            )
+            manage_orders_action.triggered.connect(self._open_orders_window)
 
         # Solo JEFE tiene acceso a Configuración
         if self.user_role == "JEFE":
@@ -187,7 +184,7 @@ class MainWindow(QMainWindow):
 
     def _open_dispatch_window(self) -> None:
         """Open the Dispatch (Despacho) module."""
-        dispatch_view = DispatchView()
+        dispatch_view = DispatchView(user_role=self.user_role)
 
         self._open_mdi_window(
             dispatch_view,
@@ -195,6 +192,24 @@ class MainWindow(QMainWindow):
             "_dispatch_window",
         )
         self.statusBar().showMessage("Módulo de Despacho abierto")
+
+    def _open_orders_window(self) -> None:
+        orders_view = OrdersView()
+        self._open_mdi_window(
+            orders_view,
+            "Gestión de Pedidos",
+            "_orders_window",
+        )
+        self.statusBar().showMessage("Gestión de Pedidos abierta")
+
+    def _open_clients_window(self) -> None:
+        clients_view = ClientsView()
+        self._open_mdi_window(
+            clients_view,
+            "Gestión de Clientes",
+            "_clients_window",
+        )
+        self.statusBar().showMessage("Gestión de Clientes abierta")
 
     def _open_boss_window(self) -> None:
         """Open the Boss (Jefe) module."""
